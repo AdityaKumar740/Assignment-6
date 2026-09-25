@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
+import { toast, ToastContainer } from "react-toastify";
 import type { Workout } from "./fitlog-data";
 
 type FitLogProps = {
@@ -11,6 +12,8 @@ type FitLogProps = {
   selectedWorkout?: Workout;
   loading?: boolean;
 };
+
+type ToastKind = "success" | "error" | "warning" | "info";
 
 const PLAN_KEY = "fitlog-todays-plan";
 const SAVED_KEY = "fitlog-saved-workouts";
@@ -70,8 +73,6 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
   const [plan, setPlan] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
-  const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
-  const toastId = useRef(0);
   const [activePlanTab, setActivePlanTab] = useState<"plan" | "saved">("plan");
   const [sortBy, setSortBy] = useState<"duration" | "caloriesBurned" | "rating">("duration");
 
@@ -89,19 +90,12 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
     window.localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
   }, [plan, ready, saved]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const timeout = window.setTimeout(() => setToast(null), 2600);
-    return () => window.clearTimeout(timeout);
-  }, [toast]);
-
   function toggleId(ids: string[], id: string, update: (next: string[]) => void) {
     update(ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
   }
 
-  function showToast(message: string) {
-    toastId.current += 1;
-    setToast({ id: toastId.current, message });
+  function showToast(message: string, type: ToastKind = "success") {
+    toast(message, { type, icon: false, className: "fitlog-toast" });
   }
 
   const plannedWorkouts = workouts.filter((workout) => plan.includes(String(workout.id)));
@@ -202,7 +196,10 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                         return;
                       }
                       toggleId(plan, id, setPlan);
-                      showToast(isPlanned ? "Removed from today's plan" : "Added to today's plan");
+                      showToast(
+                        isPlanned ? "Removed from today's plan" : "Added to today's plan",
+                        isPlanned ? "info" : "success",
+                      );
                     }}
                   >
                     <span aria-hidden="true">▦</span>
@@ -216,7 +213,10 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                       const id = String(selectedWorkout.id);
                       const isSaved = saved.includes(id);
                       toggleId(saved, id, setSaved);
-                      showToast(isSaved ? "Removed from saved workouts" : "Saved for later");
+                      showToast(
+                        isSaved ? "Removed from saved workouts" : "Saved for later",
+                        isSaved ? "info" : "success",
+                      );
                     }}
                   >
                     <span aria-hidden="true">☆</span>
@@ -351,10 +351,10 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                       const id = String(workout.id);
                       if (activePlanTab === "plan") {
                         toggleId(plan, id, setPlan);
-                        showToast("Removed from today's plan");
+                        showToast("Removed from today's plan", "info");
                       } else {
                         toggleId(saved, id, setSaved);
-                        showToast("Removed from saved workouts");
+                        showToast("Removed from saved workouts", "info");
                       }
                     }}
                     onDone={activePlanTab === "plan" ? () => {
@@ -385,7 +385,14 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
           <p>© 2026 FitLog — Workout Library. Train hard, log honest.</p>
         </div>
       </footer>
-      {toast && <div className="toast-notice" role="status" aria-live="polite">{toast.message}</div>}
+      <ToastContainer
+        position="bottom-center"
+        autoClose={2600}
+        hideProgressBar
+        closeButton={false}
+        newestOnTop
+        theme="dark"
+      />
     </>
   );
 }
