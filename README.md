@@ -19,14 +19,7 @@ FitLog is a workout library and daily training planner. Browse lifts, review exe
 4. **Saved workouts** in a separate tab, with sorting by duration, calories, or rating.
 5. **Responsive interface** with add, save, complete, and remove actions plus Toastify notifications.
 
-## Run Locally
-
-Install dependencies and start the development server:
-
-```bash
-npm install
-npm run dev
-```
+## Run on the browser
 
 Open [https://assignment-6-ten-blue.vercel.app/](https://assignment-6-ten-blue.vercel.app/) in your browser. Workout data is loaded from the [FitLog API](https://api.abcz.workers.dev/api/fitlog).
 
