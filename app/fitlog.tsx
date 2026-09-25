@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import type { Workout } from "./fitlog-data";
 
 type FitLogProps = {
@@ -43,6 +43,9 @@ function WorkoutItem({
       </div>
       <div className="workout-controls">
         <span className="set-count">{workout.duration} MIN</span>
+        <Link className="text-button details-link" href={`/workouts/${workout.id}`}>
+          VIEW DETAILS
+        </Link>
         <button className="text-button" type="button" onClick={onAction}>
           {actionLabel}
         </button>
@@ -55,6 +58,8 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
   const [plan, setPlan] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
+  const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
+  const toastId = useRef(0);
 
   useEffect(() => {
     startTransition(() => {
@@ -70,8 +75,19 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
     window.localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
   }, [plan, ready, saved]);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(null), 2600);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
   function toggleId(ids: string[], id: string, update: (next: string[]) => void) {
     update(ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
+  }
+
+  function showToast(message: string) {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message });
   }
 
   const plannedWorkouts = workouts.filter((workout) => plan.includes(String(workout.id)));
@@ -79,7 +95,7 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
 
   return (
     <>
-      <header className="site-header">
+      <header className={view === "detail" ? "site-header detail-header" : "site-header"}>
         <div className="navbar">
           <Link className="brand" href="/" aria-label="FitLog home">
             <span className="brand-image">
@@ -112,7 +128,6 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
       <main>
         {view === "detail" && selectedWorkout ? (
           <section className="detail-page">
-            <Link className="back-link" href="/#library">← THE LIBRARY</Link>
             <article className="detail-layout">
               <div className="detail-image">
                 <Image
@@ -131,45 +146,55 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
                 </div>
                 <h1>{selectedWorkout.name}</h1>
                 <p className="detail-description">{selectedWorkout.description}</p>
-                <div className="detail-stats">
-                  <span><i aria-hidden="true">◷</i>{selectedWorkout.duration} min</span>
-                  <span><i aria-hidden="true">●</i>{selectedWorkout.caloriesBurned} kcal</span>
-                  <span><i aria-hidden="true">☆</i>{selectedWorkout.rating}</span>
-                </div>
                 <dl className="detail-facts">
                   <div><dt>EQUIPMENT</dt><dd>{selectedWorkout.equipment}</dd></div>
                   <div><dt>DIFFICULTY</dt><dd>{selectedWorkout.difficulty}</dd></div>
-                  <div><dt>SETS & REPS</dt><dd>{selectedWorkout.sets} × {selectedWorkout.reps}</dd></div>
+                  <div><dt>SETS</dt><dd>{selectedWorkout.sets}</dd></div>
+                  <div><dt>REPS</dt><dd>{selectedWorkout.reps}</dd></div>
+                  <div><dt>DURATION</dt><dd>{selectedWorkout.duration} min</dd></div>
+                  <div><dt>CALORIES</dt><dd>{selectedWorkout.caloriesBurned} kcal</dd></div>
+                  <div><dt>RATING</dt><dd>{selectedWorkout.rating}</dd></div>
                 </dl>
+                <section className="instructions" aria-labelledby="instructions-title">
+                  <h2 id="instructions-title">INSTRUCTIONS</h2>
+                  <ol>
+                    {selectedWorkout.instructions.map((instruction, index) => (
+                      <li key={instruction}><span>{index + 1}.</span>{instruction}</li>
+                    ))}
+                  </ol>
+                </section>
                 <div className="detail-actions">
                   <button
                     className="primary-button"
                     type="button"
                     aria-pressed={plan.includes(String(selectedWorkout.id))}
-                    onClick={() => toggleId(plan, String(selectedWorkout.id), setPlan)}
+                    onClick={() => {
+                      const id = String(selectedWorkout.id);
+                      const isPlanned = plan.includes(id);
+                      toggleId(plan, id, setPlan);
+                      showToast(isPlanned ? "Removed from today's plan" : "Added to today's plan");
+                    }}
                   >
-                    {plan.includes(String(selectedWorkout.id)) ? "REMOVE FROM TODAY'S PLAN" : "+ ADD TO TODAY'S PLAN"}
+                    <span aria-hidden="true">▦</span>
+                    {plan.includes(String(selectedWorkout.id)) ? "Remove from today's plan" : "Add to today's plan"}
                   </button>
                   <button
                     className="secondary-action"
                     type="button"
                     aria-pressed={saved.includes(String(selectedWorkout.id))}
-                    onClick={() => toggleId(saved, String(selectedWorkout.id), setSaved)}
+                    onClick={() => {
+                      const id = String(selectedWorkout.id);
+                      const isSaved = saved.includes(id);
+                      toggleId(saved, id, setSaved);
+                      showToast(isSaved ? "Removed from saved workouts" : "Saved for later");
+                    }}
                   >
-                    {saved.includes(String(selectedWorkout.id)) ? "SAVED" : "SAVE WORKOUT"}
+                    <span aria-hidden="true">☆</span>
+                    {saved.includes(String(selectedWorkout.id)) ? "Saved for later" : "Save for later"}
                   </button>
                 </div>
               </div>
             </article>
-            <section className="instructions" aria-labelledby="instructions-title">
-              <span className="eyebrow">STEP BY STEP</span>
-              <h2 id="instructions-title">HOW TO DO IT</h2>
-              <ol>
-                {selectedWorkout.instructions.map((instruction, index) => (
-                  <li key={instruction}><span>0{index + 1}</span>{instruction}</li>
-                ))}
-              </ol>
-            </section>
           </section>
         ) : view === "library" ? (
           <>
@@ -298,6 +323,7 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
           <p>© 2026 FitLog — Workout Library. Train hard, log honest.</p>
         </div>
       </footer>
+      {toast && <div className="toast-notice" role="status" aria-live="polite">{toast.message}</div>}
     </>
   );
 }

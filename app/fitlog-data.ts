@@ -30,3 +30,14 @@ export async function getWorkouts(): Promise<Workout[]> {
 
   return data as Workout[];
 }
+
+export async function getWorkout(id: string): Promise<Workout | null> {
+  const response = await fetch(`${API_URL}/${encodeURIComponent(id)}`, { cache: "no-store" });
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`FitLog API request failed: ${response.status}`);
+  }
+
+  return (await response.json()) as Workout;
+}
