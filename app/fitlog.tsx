@@ -3,49 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
-
-type Workout = {
-  id: string;
-  name: string;
-  focus: string;
-  description: string;
-  duration: string;
-};
+import type { Workout } from "./fitlog-data";
 
 type FitLogProps = {
-  view: "library" | "plan";
+  view: "library" | "plan" | "detail";
+  workouts: Workout[];
+  selectedWorkout?: Workout;
 };
-
-const workouts: Workout[] = [
-  {
-    id: "bench-press",
-    name: "Barbell Bench Press",
-    focus: "CHEST / COMPOUND",
-    description: "A steady, controlled press built around progressive strength.",
-    duration: "4 SETS",
-  },
-  {
-    id: "back-squat",
-    name: "Barbell Back Squat",
-    focus: "LEGS / COMPOUND",
-    description: "Build lower-body strength with a strong brace and full depth.",
-    duration: "4 SETS",
-  },
-  {
-    id: "deadlift",
-    name: "Conventional Deadlift",
-    focus: "BACK / COMPOUND",
-    description: "Pull from the floor with crisp reps and a neutral spine.",
-    duration: "3 SETS",
-  },
-  {
-    id: "shoulder-press",
-    name: "Seated Shoulder Press",
-    focus: "SHOULDERS / PUSH",
-    description: "A focused overhead press for strong, stable shoulders.",
-    duration: "3 SETS",
-  },
-];
 
 const PLAN_KEY = "fitlog-todays-plan";
 const SAVED_KEY = "fitlog-saved-workouts";
@@ -73,12 +37,12 @@ function WorkoutItem({
   return (
     <article className="workout-item">
       <div className="workout-copy">
-        <span className="workout-focus">{workout.focus}</span>
+        <span className="workout-focus">{workout.muscleGroups.join(" / ").toUpperCase()}</span>
         <h3>{workout.name}</h3>
         <p>{workout.description}</p>
       </div>
       <div className="workout-controls">
-        <span className="set-count">{workout.duration}</span>
+        <span className="set-count">{workout.duration} MIN</span>
         <button className="text-button" type="button" onClick={onAction}>
           {actionLabel}
         </button>
@@ -87,7 +51,7 @@ function WorkoutItem({
   );
 }
 
-export default function FitLog({ view }: FitLogProps) {
+export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps) {
   const [plan, setPlan] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
@@ -110,8 +74,8 @@ export default function FitLog({ view }: FitLogProps) {
     update(ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
   }
 
-  const plannedWorkouts = workouts.filter((workout) => plan.includes(workout.id));
-  const savedWorkouts = workouts.filter((workout) => saved.includes(workout.id));
+  const plannedWorkouts = workouts.filter((workout) => plan.includes(String(workout.id)));
+  const savedWorkouts = workouts.filter((workout) => saved.includes(String(workout.id)));
 
   return (
     <>
@@ -124,7 +88,7 @@ export default function FitLog({ view }: FitLogProps) {
           </Link>
 
           <nav className="main-nav" aria-label="Main navigation">
-            <Link className={view === "library" ? "nav-link active" : "nav-link"} href="/">
+            <Link className={view === "library" ? "nav-link active" : "nav-link"} href="/#library">
               Workouts
             </Link>
             <Link className={view === "plan" ? "nav-link active" : "nav-link"} href="/my-plan">
@@ -146,7 +110,68 @@ export default function FitLog({ view }: FitLogProps) {
       </header>
 
       <main>
-        {view === "library" ? (
+        {view === "detail" && selectedWorkout ? (
+          <section className="detail-page">
+            <Link className="back-link" href="/#library">← THE LIBRARY</Link>
+            <article className="detail-layout">
+              <div className="detail-image">
+                <Image
+                  src={selectedWorkout.image}
+                  alt={selectedWorkout.name}
+                  fill
+                  priority
+                  sizes="(max-width: 700px) 100vw, 50vw"
+                />
+              </div>
+              <div className="detail-copy">
+                <div className="tag-row">
+                  {selectedWorkout.muscleGroups.map((group) => (
+                    <span className="tag-pill" key={group}>{group.toUpperCase()}</span>
+                  ))}
+                </div>
+                <h1>{selectedWorkout.name}</h1>
+                <p className="detail-description">{selectedWorkout.description}</p>
+                <div className="detail-stats">
+                  <span><i aria-hidden="true">◷</i>{selectedWorkout.duration} min</span>
+                  <span><i aria-hidden="true">●</i>{selectedWorkout.caloriesBurned} kcal</span>
+                  <span><i aria-hidden="true">☆</i>{selectedWorkout.rating}</span>
+                </div>
+                <dl className="detail-facts">
+                  <div><dt>EQUIPMENT</dt><dd>{selectedWorkout.equipment}</dd></div>
+                  <div><dt>DIFFICULTY</dt><dd>{selectedWorkout.difficulty}</dd></div>
+                  <div><dt>SETS & REPS</dt><dd>{selectedWorkout.sets} × {selectedWorkout.reps}</dd></div>
+                </dl>
+                <div className="detail-actions">
+                  <button
+                    className="primary-button"
+                    type="button"
+                    aria-pressed={plan.includes(String(selectedWorkout.id))}
+                    onClick={() => toggleId(plan, String(selectedWorkout.id), setPlan)}
+                  >
+                    {plan.includes(String(selectedWorkout.id)) ? "REMOVE FROM TODAY'S PLAN" : "+ ADD TO TODAY'S PLAN"}
+                  </button>
+                  <button
+                    className="secondary-action"
+                    type="button"
+                    aria-pressed={saved.includes(String(selectedWorkout.id))}
+                    onClick={() => toggleId(saved, String(selectedWorkout.id), setSaved)}
+                  >
+                    {saved.includes(String(selectedWorkout.id)) ? "SAVED" : "SAVE WORKOUT"}
+                  </button>
+                </div>
+              </div>
+            </article>
+            <section className="instructions" aria-labelledby="instructions-title">
+              <span className="eyebrow">STEP BY STEP</span>
+              <h2 id="instructions-title">HOW TO DO IT</h2>
+              <ol>
+                {selectedWorkout.instructions.map((instruction, index) => (
+                  <li key={instruction}><span>0{index + 1}</span>{instruction}</li>
+                ))}
+              </ol>
+            </section>
+          </section>
+        ) : view === "library" ? (
           <>
             <section className="hero" aria-labelledby="hero-title">
               <div className="hero-copy">
@@ -170,7 +195,43 @@ export default function FitLog({ view }: FitLogProps) {
                 />
               </div>
             </section>
-
+            <section className="library-section" id="library" aria-labelledby="library-title">
+              <div className="library-heading">
+                <div>
+                  <h2 id="library-title">THE LIBRARY</h2>
+                  <p>Twelve lifts covering every major muscle group.</p>
+                </div>
+                <span className="section-count">{workouts.length} MOVEMENTS</span>
+              </div>
+              <div className="workout-grid">
+                {workouts.map((workout) => (
+                  <Link className="workout-card" href={`/workouts/${workout.id}`} key={workout.id}>
+                    <div className="workout-image">
+                      <Image
+                        src={workout.image}
+                        alt={workout.name}
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1000px) 50vw, 33vw"
+                      />
+                    </div>
+                    <div className="workout-card-copy">
+                      <div className="tag-row">
+                        {workout.muscleGroups.map((group) => (
+                          <span className="tag-pill" key={group}>{group.toUpperCase()}</span>
+                        ))}
+                      </div>
+                      <h3>{workout.name.toUpperCase()}</h3>
+                      <p className="equipment-line">{workout.equipment}</p>
+                      <div className="workout-stats">
+                        <span><i aria-hidden="true">◷</i>{workout.duration} min</span>
+                        <span><i aria-hidden="true">●</i>{workout.caloriesBurned} kcal</span>
+                        <span><i aria-hidden="true">☆</i>{workout.rating}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
           </>
         ) : (
           <section className="plan-page" aria-labelledby="plan-title">
@@ -194,7 +255,7 @@ export default function FitLog({ view }: FitLogProps) {
                       key={workout.id}
                       workout={workout}
                       actionLabel="REMOVE"
-                      onAction={() => toggleId(plan, workout.id, setPlan)}
+                      onAction={() => toggleId(plan, String(workout.id), setPlan)}
                     />
                   ))}
                 </div>
@@ -215,7 +276,7 @@ export default function FitLog({ view }: FitLogProps) {
                       key={workout.id}
                       workout={workout}
                       actionLabel="UNSAVE"
-                      onAction={() => toggleId(saved, workout.id, setSaved)}
+                      onAction={() => toggleId(saved, String(workout.id), setSaved)}
                     />
                   ))}
                 </div>

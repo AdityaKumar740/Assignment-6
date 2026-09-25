@@ -1,5 +1,7 @@
 import FitLog from "./fitlog";
+import { getWorkouts } from "./fitlog-data";
 
-export default function Home() {
-  return <FitLog view="library" />;
+export default async function Home() {
+  const workouts = await getWorkouts();
+  return <FitLog view="library" workouts={workouts} />;
 }
