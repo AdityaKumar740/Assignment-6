@@ -29,6 +29,11 @@ function getStoredIds(key: string): string[] {
   }
 }
 
+function matchesWorkoutSearch(workout: Workout, query: string) {
+  const searchableText = [workout.name, ...workout.muscleGroups].join(" ").toLowerCase();
+  return searchableText.includes(query.trim().toLowerCase());
+}
+
 function PlanWorkoutCard({
   workout,
   onRemove,
@@ -75,6 +80,7 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
   const [ready, setReady] = useState(false);
   const [activePlanTab, setActivePlanTab] = useState<"plan" | "saved">("plan");
   const [sortBy, setSortBy] = useState<"duration" | "caloriesBurned" | "rating">("duration");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     startTransition(() => {
@@ -101,7 +107,9 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
   const plannedWorkouts = workouts.filter((workout) => plan.includes(String(workout.id)));
   const savedWorkouts = workouts.filter((workout) => saved.includes(String(workout.id)));
   const visibleWorkouts = [...(activePlanTab === "plan" ? plannedWorkouts : savedWorkouts)]
+    .filter((workout) => matchesWorkoutSearch(workout, searchQuery))
     .sort((first, second) => first[sortBy] - second[sortBy]);
+  const libraryWorkouts = workouts.filter((workout) => matchesWorkoutSearch(workout, searchQuery));
   const plannedMinutes = plannedWorkouts.reduce((total, workout) => total + workout.duration, 0);
   const plannedCalories = plannedWorkouts.reduce((total, workout) => total + workout.caloriesBurned, 0);
   const largeHeader = view === "detail" || view === "plan";
@@ -196,13 +204,15 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                 </section>
                 <div className="mt-4 flex flex-wrap gap-[9px]">
                   <button
-                    className="inline-flex min-h-[34px] cursor-pointer items-center justify-center gap-2 rounded bg-[#ccff00] px-[14px] text-[10px] font-black text-[#101207] transition-colors hover:bg-[#e0ff59]"
+                    className="inline-flex min-h-[34px] cursor-pointer items-center justify-center gap-2 rounded bg-[#ccff00] px-[14px] text-[10px] font-black text-[#101207] transition-colors hover:bg-[#e0ff59] disabled:cursor-not-allowed disabled:opacity-40"
                     type="button"
+                    disabled={plan.length >= 5 && !plan.includes(String(selectedWorkout.id))}
+                    title={plan.length >= 5 && !plan.includes(String(selectedWorkout.id)) ? "Today's plan is full" : undefined}
                     aria-pressed={plan.includes(String(selectedWorkout.id))}
                     onClick={() => {
                       const id = String(selectedWorkout.id);
                       const isPlanned = plan.includes(id);
-                      if (!isPlanned && plannedWorkouts.length >= 5) {
+                      if (!isPlanned && plan.length >= 5) {
                         showToast("Today's plan is full. Finish a lift before adding another.");
                         return;
                       }
@@ -263,15 +273,27 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
               </div>
             </section>
             <section className="scroll-mt-[26px] py-12 pb-[72px] max-[520px]:pt-9" id="library" aria-labelledby="library-title">
-              <div className="mb-[18px] flex items-end justify-between gap-5">
+              <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h2 className="m-0 font-[Impact,Haettenschweiler,Arial_Narrow_Bold,sans-serif] text-[26px] leading-none" id="library-title">THE LIBRARY</h2>
                   <p className="mb-0 mt-[7px] text-[11px] text-[#888d97]">Twelve lifts covering every major muscle group.</p>
                 </div>
-                <span className="text-[9px] font-bold text-[#888d97]">{workouts.length} MOVEMENTS</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label>
+                    <span className="sr-only">Search workouts by name or muscle group</span>
+                    <input
+                      className="h-9 w-52 rounded-md border border-[#25282d] bg-[#13151a] px-3 text-xs text-[#f4f5f6] outline-none placeholder:text-[#747984] focus:border-[#ccff00] max-[520px]:w-full"
+                      type="search"
+                      placeholder="Search lifts or tags"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                    />
+                  </label>
+                  <span className="text-[9px] font-bold text-[#888d97]">{libraryWorkouts.length} MOVEMENTS</span>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-[14px] max-[700px]:grid-cols-2 max-[700px]:gap-[10px] max-[520px]:grid-cols-1">
-                {workouts.map((workout) => (
+                {libraryWorkouts.map((workout) => (
                   <Link className="group block min-w-0 overflow-hidden rounded-md border border-[#25282d] bg-[#15171b] transition-all duration-150 hover:-translate-y-0.5 hover:border-[#3b4149]" href={`/workouts/${workout.id}`} key={workout.id}>
                     <div className="relative aspect-[2/1] overflow-hidden bg-[#202329]">
                       <Image
@@ -299,6 +321,9 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                   </Link>
                 ))}
               </div>
+              {libraryWorkouts.length === 0 && (
+                <p className="mt-4 text-xs text-[#888d97]">No workouts match “{searchQuery}”.</p>
+              )}
             </section>
           </>
         ) : (
@@ -321,7 +346,7 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                 <strong className="font-[Impact,Haettenschweiler,Arial_Narrow_Bold,sans-serif] text-[34px] font-medium leading-none max-[520px]:text-[27px]">{plannedCalories}</strong>
               </div>
             </section>
-            <div className="my-[20px] flex items-center justify-between gap-4 max-[520px]:flex-wrap">
+            <div className="my-[20px] flex flex-wrap items-center justify-between gap-4">
               <div className="inline-flex gap-[3px] rounded-lg border border-[#25282d] bg-[#13151a] p-1" role="tablist" aria-label="My Plan views">
                 <button
                   className={`min-h-[30px] min-w-[98px] rounded-md border px-3 text-[10px] max-[520px]:min-w-[82px] max-[520px]:px-2 ${activePlanTab === "plan" ? "border-[#2c3038] bg-[#20232a] text-[#f4f5f6]" : "border-transparent bg-transparent text-[#888d97]"}`}
@@ -342,6 +367,16 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                   Saved
                 </button>
               </div>
+              <label>
+                <span className="sr-only">Search by workout name or muscle group</span>
+                <input
+                  className="h-9 w-48 rounded-md border border-[#25282d] bg-[#13151a] px-3 text-xs text-[#f4f5f6] outline-none placeholder:text-[#747984] focus:border-[#ccff00] max-[520px]:w-full"
+                  type="search"
+                  placeholder="Search name or tag"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </label>
               <label className="sort-control">
                 <span>Sort By</span>
                 <span className="sort-select-wrap">
@@ -377,6 +412,11 @@ export default function FitLog({ view, workouts, selectedWorkout, loading = fals
                   />
                 ))}
               </div>
+            ) : searchQuery.trim() ? (
+              <section className="flex min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-[#282b31] p-6 text-center" role="tabpanel">
+                <h2 className="m-0 font-[Impact,Haettenschweiler,Arial_Narrow_Bold,sans-serif] text-xl">NO MATCHES</h2>
+                <p className="mb-0 mt-2 text-[11px] text-[#888d97]">Try another workout name or muscle group.</p>
+              </section>
             ) : (
               <section className="flex min-h-[278px] flex-col items-center justify-center rounded-xl border border-dashed border-[#282b31] p-6 text-center max-[520px]:min-h-[230px]" role="tabpanel">
                 <h2 className="m-0 font-[Impact,Haettenschweiler,Arial_Narrow_Bold,sans-serif] text-xl">NOTHING HERE YET</h2>

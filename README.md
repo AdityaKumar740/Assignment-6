@@ -29,3 +29,13 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser. Workout data is loaded from the [FitLog API](https://api.abcz.workers.dev/api/fitlog).
+
+## Deploy to Vercel
+
+1. Push the project to GitHub, then import that repository in [Vercel](https://vercel.com/new).
+2. Keep the framework preset as **Next.js** and the root directory as the repository root.
+3. Use the default install and build settings. The build command is `npm run build`; leave the output directory unset so Vercel uses Next.js output.
+4. No environment variables are required. The app fetches workout data from the public FitLog API.
+5. Deploy, then check `/`, `/my-plan`, `/workouts/1`, and an invalid workout URL such as `/workouts/999999`.
+
+Do not enable static export: the app needs server rendering for API data and dynamic workout detail routes.
