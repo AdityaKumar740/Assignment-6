@@ -28,7 +28,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. Workout data is loaded from the [FitLog API](https://api.abcz.workers.dev/api/fitlog).
+Open [https://assignment-6-ten-blue.vercel.app/](https://assignment-6-ten-blue.vercel.app/) in your browser. Workout data is loaded from the [FitLog API](https://api.abcz.workers.dev/api/fitlog).
 
 ## Deploy to Vercel
 
