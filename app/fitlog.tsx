@@ -287,6 +287,17 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
           </section>
         )}
       </main>
+
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <Link className="footer-brand" href="/" aria-label="FitLog home">
+            <span className="footer-logo">
+              <Image src="/assets/logo.png" alt="FitLog" fill sizes="52px" />
+            </span>
+          </Link>
+          <p>© 2026 FitLog — Workout Library. Train hard, log honest.</p>
+        </div>
+      </footer>
     </>
   );
 }

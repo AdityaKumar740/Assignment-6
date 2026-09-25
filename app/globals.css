@@ -22,6 +22,8 @@ html {
 }
 
 body {
+	display: flex;
+	flex-direction: column;
 	min-height: 100vh;
 	margin: 0;
 	background: var(--background);
@@ -140,8 +142,44 @@ button {
 }
 
 main {
+	flex: 1;
 	width: min(100% - 20px, 1180px);
 	margin: 0 auto;
+}
+
+.site-footer {
+	min-height: 60px;
+	margin-top: 0;
+	border-top: 1px solid #1a1c20;
+}
+
+.footer-inner {
+	display: flex;
+	width: min(100% - 20px, 1180px);
+	min-height: 59px;
+	margin: 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.footer-logo {
+	position: relative;
+	display: block;
+	width: 52px;
+	height: 17px;
+}
+
+.footer-logo img {
+	object-fit: contain;
+	object-position: left center;
+}
+
+.footer-inner p {
+	margin: 0;
+	color: #747984;
+	font-size: 9px;
+	text-align: right;
 }
 
 .hero {
