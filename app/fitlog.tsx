@@ -9,6 +9,7 @@ type FitLogProps = {
   view: "library" | "plan" | "detail";
   workouts: Workout[];
   selectedWorkout?: Workout;
+  loading?: boolean;
 };
 
 const PLAN_KEY = "fitlog-todays-plan";
@@ -25,41 +26,54 @@ function getStoredIds(key: string): string[] {
   }
 }
 
-function WorkoutItem({
+function PlanWorkoutCard({
   workout,
-  actionLabel,
-  onAction,
+  onRemove,
+  onDone,
 }: {
   workout: Workout;
-  actionLabel: string;
-  onAction: () => void;
+  onRemove: () => void;
+  onDone?: () => void;
 }) {
   return (
-    <article className="workout-item">
-      <div className="workout-copy">
-        <span className="workout-focus">{workout.muscleGroups.join(" / ").toUpperCase()}</span>
-        <h3>{workout.name}</h3>
-        <p>{workout.description}</p>
+    <article className="plan-workout-card">
+      <Link className="plan-thumbnail" href={`/workouts/${workout.id}`} aria-label={`View ${workout.name}`}>
+        <Image src={workout.image} alt="" fill sizes="144px" />
+      </Link>
+      <div className="plan-workout-info">
+        <h3>{workout.name.toUpperCase()}</h3>
+        <p>{workout.equipment}</p>
+        <div className="workout-stats">
+          <span><i aria-hidden="true">◷</i>{workout.duration} min</span>
+          <span><i aria-hidden="true">●</i>{workout.caloriesBurned} kcal</span>
+          <span><i aria-hidden="true">☆</i>{workout.rating}</span>
+        </div>
       </div>
-      <div className="workout-controls">
-        <span className="set-count">{workout.duration} MIN</span>
-        <Link className="text-button details-link" href={`/workouts/${workout.id}`}>
-          VIEW DETAILS
+      <div className="plan-workout-actions">
+        <Link className="plan-action-button details-link" href={`/workouts/${workout.id}`}>
+          View Details
         </Link>
-        <button className="text-button" type="button" onClick={onAction}>
-          {actionLabel}
+        {onDone && (
+          <button className="plan-action-button done-button" type="button" onClick={onDone}>
+            <span aria-hidden="true">✓</span> Mark as Done
+          </button>
+        )}
+        <button className="remove-button" type="button" onClick={onRemove} aria-label={`Remove ${workout.name}`}>
+          ×
         </button>
       </div>
     </article>
   );
 }
 
-export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps) {
+export default function FitLog({ view, workouts, selectedWorkout, loading = false }: FitLogProps) {
   const [plan, setPlan] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
   const toastId = useRef(0);
+  const [activePlanTab, setActivePlanTab] = useState<"plan" | "saved">("plan");
+  const [sortBy, setSortBy] = useState<"duration" | "caloriesBurned" | "rating">("duration");
 
   useEffect(() => {
     startTransition(() => {
@@ -92,10 +106,14 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
 
   const plannedWorkouts = workouts.filter((workout) => plan.includes(String(workout.id)));
   const savedWorkouts = workouts.filter((workout) => saved.includes(String(workout.id)));
+  const visibleWorkouts = [...(activePlanTab === "plan" ? plannedWorkouts : savedWorkouts)]
+    .sort((first, second) => first[sortBy] - second[sortBy]);
+  const plannedMinutes = plannedWorkouts.reduce((total, workout) => total + workout.duration, 0);
+  const plannedCalories = plannedWorkouts.reduce((total, workout) => total + workout.caloriesBurned, 0);
 
   return (
     <>
-      <header className={view === "detail" ? "site-header detail-header" : "site-header"}>
+      <header className={view === "detail" ? "site-header detail-header" : view === "plan" ? "site-header plan-header" : "site-header"}>
         <div className="navbar">
           <Link className="brand" href="/" aria-label="FitLog home">
             <span className="brand-image">
@@ -126,7 +144,15 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
       </header>
 
       <main>
-        {view === "detail" && selectedWorkout ? (
+        {view === "plan" && loading ? (
+          <section className="plan-page" aria-labelledby="plan-title">
+            <div className="plan-title-block">
+              <h1 id="plan-title">MY PLAN</h1>
+              <p>Cap of five lifts for today. Finish them, then load more.</p>
+            </div>
+            <p className="plan-loading" role="status">Loading workouts…</p>
+          </section>
+        ) : view === "detail" && selectedWorkout ? (
           <section className="detail-page">
             <article className="detail-layout">
               <div className="detail-image">
@@ -171,6 +197,10 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
                     onClick={() => {
                       const id = String(selectedWorkout.id);
                       const isPlanned = plan.includes(id);
+                      if (!isPlanned && plannedWorkouts.length >= 5) {
+                        showToast("Today's plan is full. Finish a lift before adding another.");
+                        return;
+                      }
                       toggleId(plan, id, setPlan);
                       showToast(isPlanned ? "Removed from today's plan" : "Added to today's plan");
                     }}
@@ -260,55 +290,87 @@ export default function FitLog({ view, workouts, selectedWorkout }: FitLogProps)
           </>
         ) : (
           <section className="plan-page" aria-labelledby="plan-title">
-            <div className="section-heading plan-heading">
-              <div>
-                <span className="eyebrow">STAY ON TRACK</span>
-                <h1 id="plan-title">MY PLAN</h1>
-              </div>
-              <Link className="secondary-button" href="/#library">+ ADD WORKOUTS</Link>
+            <div className="plan-title-block">
+              <h1 id="plan-title">MY PLAN</h1>
+              <p>Cap of five lifts for today. Finish them, then load more.</p>
             </div>
-
-            <section className="plan-group" aria-labelledby="today-title">
-              <div className="group-heading">
-                <h2 id="today-title">TODAY&apos;S PLAN</h2>
-                <span className="section-count">{plannedWorkouts.length} MOVEMENTS</span>
+            <section className="plan-metrics" aria-label="Today's plan summary">
+              <div className="metric-item">
+                <span>Exercises</span>
+                <strong className="metric-highlight">{plannedWorkouts.length}</strong>
               </div>
-              {plannedWorkouts.length ? (
-                <div className="workout-list">
-                  {plannedWorkouts.map((workout) => (
-                    <WorkoutItem
-                      key={workout.id}
-                      workout={workout}
-                      actionLabel="REMOVE"
-                      onAction={() => toggleId(plan, String(workout.id), setPlan)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="empty-state">Nothing planned yet. Add a movement from the library.</p>
-              )}
-            </section>
-
-            <section className="plan-group saved-group" aria-labelledby="saved-title">
-              <div className="group-heading">
-                <h2 id="saved-title">SAVED WORKOUTS</h2>
-                <span className="section-count">{savedWorkouts.length} SAVED</span>
+              <div className="metric-item">
+                <span>Minutes</span>
+                <strong>{plannedMinutes}</strong>
               </div>
-              {savedWorkouts.length ? (
-                <div className="workout-list">
-                  {savedWorkouts.map((workout) => (
-                    <WorkoutItem
-                      key={workout.id}
-                      workout={workout}
-                      actionLabel="UNSAVE"
-                      onAction={() => toggleId(saved, String(workout.id), setSaved)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="empty-state">No saved workouts. Bookmark lifts you want to revisit.</p>
-              )}
+              <div className="metric-item">
+                <span>Calories</span>
+                <strong>{plannedCalories}</strong>
+              </div>
             </section>
+            <div className="plan-toolbar">
+              <div className="plan-tabs" role="tablist" aria-label="My Plan views">
+                <button
+                  className={activePlanTab === "plan" ? "plan-tab active" : "plan-tab"}
+                  type="button"
+                  role="tab"
+                  aria-selected={activePlanTab === "plan"}
+                  onClick={() => setActivePlanTab("plan")}
+                >
+                  Today&apos;s Plan
+                </button>
+                <button
+                  className={activePlanTab === "saved" ? "plan-tab active" : "plan-tab"}
+                  type="button"
+                  role="tab"
+                  aria-selected={activePlanTab === "saved"}
+                  onClick={() => setActivePlanTab("saved")}
+                >
+                  Saved
+                </button>
+              </div>
+              <label className="sort-control">
+                <span>Sort By</span>
+                <span className="sort-select-wrap">
+                  <select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}>
+                    <option value="duration">Duration</option>
+                    <option value="caloriesBurned">Calories</option>
+                    <option value="rating">Rating</option>
+                  </select>
+                  <span className="sort-chevron" aria-hidden="true" />
+                </span>
+              </label>
+            </div>
+            {visibleWorkouts.length ? (
+              <div className="plan-workout-list" role="tabpanel">
+                {visibleWorkouts.map((workout) => (
+                  <PlanWorkoutCard
+                    key={workout.id}
+                    workout={workout}
+                    onRemove={() => {
+                      const id = String(workout.id);
+                      if (activePlanTab === "plan") {
+                        toggleId(plan, id, setPlan);
+                        showToast("Removed from today's plan");
+                      } else {
+                        toggleId(saved, id, setSaved);
+                        showToast("Removed from saved workouts");
+                      }
+                    }}
+                    onDone={activePlanTab === "plan" ? () => {
+                      toggleId(plan, String(workout.id), setPlan);
+                      showToast("Workout marked as done");
+                    } : undefined}
+                  />
+                ))}
+              </div>
+            ) : (
+              <section className="plan-empty" role="tabpanel">
+                <h2>NOTHING HERE YET</h2>
+                <p>Browse the library and add a lift to get today moving.</p>
+                <Link className="empty-cta" href="/">Go to workouts</Link>
+              </section>
+            )}
           </section>
         )}
       </main>
